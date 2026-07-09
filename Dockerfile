@@ -16,4 +16,4 @@ RUN chmod +x /usr/local/bin/backup.sh &&      \
     mkdir -p /backups
 
 # Start cron daemon
-CMD ["crond", "-f", "-d", "8"]
+CMD ["crond", "-f"]

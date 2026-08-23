@@ -36,7 +36,13 @@ if timeout 3600 pg_dump -h "$DB_HOST" -p "$DB_PORT" -U "$DB_USER" -d "$DB_NAME" 
     
     # Clean up old backups
     echo "Cleaning up backups older than $RETENTION_DAYS days..."
-    find "$BACKUP_DIR" -name "logibooks_backup_*.sql.gz" -type f -mtime +$RETENTION_DAYS -delete
+echo "Backups selected for deletion:"
+if [[ ! "$RETENTION_DAYS" =~ ^[0-9]+$ ]]; then
+  echo "RETENTION_DAYS must be a non-negative integer; got: $RETENTION_DAYS" >&2
+  exit 1
+fi
+find "$BACKUP_DIR" -name "logibooks_backup_*.sql.gz" -type f -mtime "+$RETENTION_DAYS" -print -delete
+    echo "Backup cleanup completed"
     
     echo "Backup process completed at $(date)"
 else

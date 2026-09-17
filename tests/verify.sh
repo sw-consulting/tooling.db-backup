@@ -24,23 +24,46 @@
 # ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
 # POSSIBILITY OF SUCH DAMAGE.
 
-set -e
+set -euo pipefail
 
-BACKUP_FILE=$1
-if [ -z "$BACKUP_FILE" ]; then
-    echo "Usage: $0 <backup_file.sql.gz>"
-    exit 1
+image=${1:-db-backup:test}
+root=$(cd -- "$(dirname -- "${BASH_SOURCE[0]}")/.." && pwd)
+if [[ ${OSTYPE:-} == msys* ]]; then
+    root=$(cygpath -m "$root")
+    export MSYS_NO_PATHCONV=1
 fi
+containers=()
+cleanup() {
+    result=$?
+    trap - EXIT
+    for container in "${containers[@]}"; do
+        if (( result != 0 )); then docker logs "$container" >&2 || true; fi
+        docker rm -f "$container" >/dev/null || true
+    done
+    exit "$result"
+}
+trap cleanup EXIT
 
-: "${DB_NAME:?DB_NAME must be set and non-empty}"
+# Exercise the image's real entrypoint and default CMD with an empty directory.
+normal=$(docker create -e DB_NAME=test_database "$image")
+containers+=("$normal")
+docker start "$normal" >/dev/null
+ready=false
+for attempt in {1..20}; do
+    if docker exec "$normal" /usr/local/bin/healthcheck.sh; then
+        ready=true
+        break
+    fi
+    sleep 0.5
+done
+[[ $ready == true ]]
+docker stop "$normal" >/dev/null
 
-DB_HOST=${DB_HOST:-db}
-DB_PORT=${DB_PORT:-5432}
-DB_USER=${DB_USER:-postgres}
-DB_PASSWORD=${DB_PASSWORD:-postgres}
-
-export PGPASSWORD="$DB_PASSWORD"
-
-echo "Restoring database from $BACKUP_FILE"
-gunzip -c "$BACKUP_FILE" | psql -h "$DB_HOST" -p "$DB_PORT" -U "$DB_USER" -d "$DB_NAME"
-echo "Database restored successfully"
+# Bash stays alive as PID 1 while the suite starts and stops a real crond child.
+suite=$(docker create --entrypoint /bin/bash "$image" /tests/container.sh)
+containers+=("$suite")
+docker cp "$root/tests" "$suite:/tests"
+docker cp "$root/restore.sh" "$suite:/tests/restore.sh"
+docker start -a "$suite"
+test "$(docker inspect --format '{{.State.ExitCode}}' "$suite")" = 0
+echo 'PASS: all container checks'

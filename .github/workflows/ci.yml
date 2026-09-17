@@ -1,8 +1,7 @@
-#!/bin/bash
-# Copyright (C) 2025-2026 Maxim [maxirmx] Samsonov (www.sw.consulting)
+# Copyright (C) 2025 Maxim [maxirmx] Samsonov (www.sw.consulting)
 # All rights reserved.
 # This file is a part of sw.consulting toolset 
-#
+
 # Redistribution and use in source and binary forms, with or without
 # modification, are permitted provided that the following conditions
 # are met:
@@ -24,23 +23,28 @@
 # ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
 # POSSIBILITY OF SUCH DAMAGE.
 
-set -e
+name: ci
 
-BACKUP_FILE=$1
-if [ -z "$BACKUP_FILE" ]; then
-    echo "Usage: $0 <backup_file.sql.gz>"
-    exit 1
-fi
+permissions:
+  contents: read
 
-: "${DB_NAME:?DB_NAME must be set and non-empty}"
+on:
+  push:
+    branches: [ main ]
+  pull_request:
+  workflow_dispatch:
 
-DB_HOST=${DB_HOST:-db}
-DB_PORT=${DB_PORT:-5432}
-DB_USER=${DB_USER:-postgres}
-DB_PASSWORD=${DB_PASSWORD:-postgres}
+concurrency:
+  group: '${{ github.workflow }}-${{ github.job }}-${{ github.head_ref || github.ref_name }}'
+  cancel-in-progress: true
 
-export PGPASSWORD="$DB_PASSWORD"
-
-echo "Restoring database from $BACKUP_FILE"
-gunzip -c "$BACKUP_FILE" | psql -h "$DB_HOST" -p "$DB_PORT" -U "$DB_USER" -d "$DB_NAME"
-echo "Database restored successfully"
+jobs:
+  verify:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v4
+      - name: Build image
+        run: docker build -t db-backup:test .
+      - name: Verify backup readiness and behavior
+        run: bash tests/verify.sh db-backup:test

@@ -4,10 +4,16 @@
 set +m
 set -e
 
-# Rest of your backup script...
+# Validate configuration before creating files or connecting to the database.
+: "${DB_NAME:?DB_NAME must be set and non-empty}"
+BACKUP_PROJECT_NAME=${BACKUP_PROJECT_NAME:-$DB_NAME}
+if [[ ! "$BACKUP_PROJECT_NAME" =~ ^[a-zA-Z0-9._-]+$ ]]; then
+    echo "BACKUP_PROJECT_NAME must contain only letters, digits, dots, underscores, and hyphens" >&2
+    exit 1
+fi
+
 DB_HOST=${DB_HOST:-db}
 DB_PORT=${DB_PORT:-5432}
-DB_NAME=${DB_NAME:-logibooks}
 DB_USER=${DB_USER:-postgres}
 DB_PASSWORD=${DB_PASSWORD:-postgres}
 BACKUP_DIR=${BACKUP_DIR:-/backups}
@@ -18,7 +24,7 @@ mkdir -p "$BACKUP_DIR"
 
 # Generate timestamp for backup filename
 TIMESTAMP=$(date +%Y%m%d_%H%M%S)
-BACKUP_FILE="$BACKUP_DIR/logibooks_backup_$TIMESTAMP.sql"
+BACKUP_FILE="$BACKUP_DIR/${BACKUP_PROJECT_NAME}_backup_$TIMESTAMP.sql"
 
 echo "Starting database backup at $(date)"
 echo "Backup file: $BACKUP_FILE"
@@ -41,7 +47,7 @@ if [[ ! "$RETENTION_DAYS" =~ ^[0-9]+$ ]]; then
   echo "RETENTION_DAYS must be a non-negative integer; got: $RETENTION_DAYS" >&2
   exit 1
 fi
-find "$BACKUP_DIR" -name "logibooks_backup_*.sql.gz" -type f -mtime "+$RETENTION_DAYS" -print -delete
+find "$BACKUP_DIR" -name "${BACKUP_PROJECT_NAME}_backup_*.sql.gz" -type f -mtime "+$RETENTION_DAYS" -print -delete
     echo "Backup cleanup completed"
     
     echo "Backup process completed at $(date)"

@@ -66,7 +66,7 @@ Set-Location 'R:\Projects\30.Projects\tooling.db-backup\support'
     -RemoteHost 'kreel1.sw.consulting' `
     -Username 'backup-operator' `
     -RemoteFolder '/mnt/logistore/backup/data' `
-    -LocalFolder 'D:\Projects\logibooks\backup'
+    -LocalFolder 'D:\Projects\my-project\backup'
 ```
 
 Чтобы включить файлы из вложенных каталогов, добавьте `-Recurse`:
@@ -152,7 +152,7 @@ if (-not (Test-Path -LiteralPath $CredentialPath -PathType Leaf)) {
     -Username $credential.UserName `
     -Password $credential.Password `
     -RemoteFolder '/mnt/logistore/backup/data' `
-    -LocalFolder 'D:\Projects\logibooks\backup' `
+    -LocalFolder 'D:\Projects\my-project\backup' `
     -Recurse
 
 # Здесь можно продолжить основной процесс резервного копирования. Ошибка

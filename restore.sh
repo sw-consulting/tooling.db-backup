@@ -7,9 +7,10 @@ if [ -z "$BACKUP_FILE" ]; then
     exit 1
 fi
 
+: "${DB_NAME:?DB_NAME must be set and non-empty}"
+
 DB_HOST=${DB_HOST:-db}
 DB_PORT=${DB_PORT:-5432}
-DB_NAME=${DB_NAME:-logibooks}
 DB_USER=${DB_USER:-postgres}
 DB_PASSWORD=${DB_PASSWORD:-postgres}
 

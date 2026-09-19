@@ -1,7 +1,8 @@
 # PostgreSQL database backups
 
 Creates compressed SQL backups daily at 02:00 in the container's timezone.
-The image uses `tini` as PID 1 so `crond` can initialize its process group.
+The image uses `tini` as PID 1, or as a child subreaper when the container
+runtime inserts its own init process, so child processes are reaped correctly.
 
 ## Configuration
 

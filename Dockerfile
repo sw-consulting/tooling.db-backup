@@ -40,6 +40,7 @@ RUN chmod +x /usr/local/bin/backup.sh &&      \
     dos2unix /etc/crontabs/root            && \
     mkdir -p /backups
 
-# Start cron daemon
-ENTRYPOINT ["/sbin/tini", "--", "docker-entrypoint.sh"]
+# Start cron daemon. Register Tini as a subreaper as well, so it can still reap
+# orphaned descendants when a runtime inserts its own init process ahead of it.
+ENTRYPOINT ["/sbin/tini", "-s", "--", "docker-entrypoint.sh"]
 CMD ["crond", "-f"]

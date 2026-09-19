@@ -59,8 +59,27 @@ done
 [[ $ready == true ]]
 docker stop "$normal" >/dev/null
 
-# Bash stays alive as PID 1 while the suite starts and stops a real crond child.
-suite=$(docker create --entrypoint /bin/bash "$image" /tests/container.sh)
+# Some deployments insert their own init as PID 1. Verify that the image's Tini
+# registers as a child subreaper and starts cleanly when it is wrapped this way.
+wrapped=$(docker create --init -e DB_NAME=test_database "$image")
+containers+=("$wrapped")
+docker start "$wrapped" >/dev/null
+ready=false
+for attempt in {1..20}; do
+    if docker exec "$wrapped" /usr/local/bin/healthcheck.sh; then
+        ready=true
+        break
+    fi
+    sleep 0.5
+done
+[[ $ready == true ]]
+! docker logs "$wrapped" 2>&1 | grep -Fq "Tini is not running as PID 1"
+docker stop "$wrapped" >/dev/null
+
+# Normalize copied scripts so the suite also works from a Windows CRLF checkout.
+# Bash then stays alive as PID 1 while the suite starts and stops a real crond child.
+suite=$(docker create --entrypoint /bin/sh "$image" -c \
+    'dos2unix /tests/container.sh /tests/restore.sh && exec /bin/bash /tests/container.sh')
 containers+=("$suite")
 docker cp "$root/tests" "$suite:/tests"
 docker cp "$root/restore.sh" "$suite:/tests/restore.sh"
